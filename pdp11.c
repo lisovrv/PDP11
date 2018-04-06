@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
+#include <stdlib.h>
+
 
 
 typedef unsigned char byte;
@@ -10,13 +12,9 @@ typedef word adr;
 #define LO(x) ((x)&0xFF)
 #define HI(x) (((x)>>8)&0xFF)
 
-byte mem[64*1024];
 
-/*union A
-{
-    unsigned short int a;
-    unsigned int z;
-}; */
+
+byte mem[64*1024];
 
 void testmem();
 byte b_read (adr a);
@@ -25,8 +23,16 @@ word w_read (adr a);
 void w_write (adr a, word val);
 void printWord(unsigned short int a);
 void printByte(unsigned char a);
-void load_file();
+void load_file(char* file);
 void mem_dump(adr start, word n);
+void run(adr pc0);
+void do_halt();
+void do_add();
+void do_mov();
+void do_unknown();
+
+
+
 
 byte b_read (adr a)
 {
@@ -44,13 +50,8 @@ word w_read (adr a)
 
     word wrd1= mem[a];
     word wrd2 = mem[a + 1];
-    //printWord(wrd2);
+
     wrd2 <<= 8;
-    //printWord(wrd1);
-    //printWord(wrd2);
-
-   // printWord(wrd1 + wrd2);
-
     return wrd1 + wrd2;
 }
 
@@ -58,12 +59,8 @@ void w_write (adr a, word val)
 {
     assert(a % 2 == 0);
 
-    //val = 0x0b0a;
-    // a = 2
-    // mem[2] = 0x0a
-    mem[a] = (byte) val & 0xFF;   // (byte)val;
+    mem[a] = (byte) val & 0xFF;
 
-    // mem[3] = 0x0b;
     mem[a + 1] = (byte) (val >> 8) & 0xFF;
 
 }
@@ -89,24 +86,43 @@ void testmem()
     assert( b0 == 0x0d);
 }
 
-void load_file()
+
+int main (int argc, char** argv)
 {
-    FILE * f = stdin;
-    unsigned int  adr;
-    unsigned int  n;
+    testmem();
+
+    load_file(argv[1]);
+    run(0040);
+
+    testmem();
+    mem_dump( 0x40, 4);
+
+    return 0;
+
+}
+
+void load_file(char* file)
+{
+    unsigned int a;
+    unsigned int n;
     unsigned int val;
-    while(fscanf(f, "%x%x", &adr, &n) == 2)
+    int i = 0;
+    FILE* f = fopen(file, "r");
+    if (f == NULL)
     {
-
-        //fscanf(f, "%x%x", &adr, &n);
-        int i = 0;
-
-        for(i = 0; i < n; i++)
+        perror("file");
+        exit (1);
+    }
+    while (fscanf (f, "%x%x", &a, &n) == 2)
+    {
+        for (i = a; i < a + n; i++)
         {
-            fscanf(f, "%x", &val);
-            b_write(adr + i, val);
+            fscanf(f,"%x", &val);
+            b_write (i,val);
         }
     }
+    fclose (f);
+    mem_dump(a, n);
 }
 
 void mem_dump(adr start, word n)
@@ -119,18 +135,6 @@ void mem_dump(adr start, word n)
     }
 }
 
-
-
-int main()
-{
-    //printf("%d\n\n", sizeof(unsigned short int));
-
-    testmem();
-    load_file();
-    mem_dump( 0x40, 4);
-
-    return 0;
-}
 
 void printWord(unsigned short int a)
 {
